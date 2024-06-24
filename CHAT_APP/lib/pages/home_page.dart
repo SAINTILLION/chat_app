@@ -51,7 +51,17 @@ class _HomePageState extends State<HomePage> {
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Text("loading...");
+            return const Center(
+              child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,  
+              children: [
+                CircularProgressIndicator(color: Colors.blue,),
+                Text(
+                  "loading..."
+                  ),
+              ],
+              ),
+            );
           }
 
           return ListView(
@@ -70,6 +80,12 @@ class _HomePageState extends State<HomePage> {
     if (_auth.currentUser!.email != data["email"]) {
       return ListTile(
           title: Text(data["email"]),
+          shape: const RoundedRectangleBorder(
+          side: BorderSide(
+            color: Colors.grey, // Customize border color
+            width: 1.0,        // Adjust border thickness
+          ),
+        ),
           onTap: () {
             // pass the clicked user's UID to the chat page
             Navigator.push(

@@ -89,24 +89,25 @@ class _ChatPageState extends State<ChatPage> {
         : Alignment.centerRight;
     var color = (data['senderId'] == _firebaseAuth.currentUser!.uid)
      ? Colors.blue 
-     : Colors.white; 
-    return InkWell(
+     : const Color.fromARGB(255, 255, 255, 255); 
+    var textstyle =  (data['senderId'] == _firebaseAuth.currentUser!.uid)
+        ? Theme.of(context).textTheme.displaySmall
+        : Theme.of(context).textTheme.displayMedium;
+    return Align(
+      alignment: alignment,
       child: Container(
+        width: 200,
+        margin: EdgeInsets.only(left: 8.0, right: 8.0, top: 4.0, bottom: 4 ),
         padding: const EdgeInsets.all(8.0),
         color: color,
-        alignment: alignment,
         child:Column(
           mainAxisSize: MainAxisSize.min,
           children: [  
           Text(
-            data['senderEmail'],
-            style: Theme.of(context).textTheme.displayMedium,
-          ), 
-          Text(
             data['message'],
-            style: Theme.of(context).textTheme.displayMedium,
+            style: textstyle,
           ),
-          SizedBox(height: 12)
+          const SizedBox(height: 12)
           ]
         ),
       ),
