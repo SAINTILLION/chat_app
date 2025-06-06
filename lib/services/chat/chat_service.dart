@@ -31,7 +31,7 @@ class ChatService extends ChangeNotifier {
 
     // Add message to Firestore
     await _firestore
-        .collection("ext_chat_rooms")
+        .collection("chat_rooms")
         .doc(chatRoomId)
         .collection("messages")
         .add(newMessage.toMap());
@@ -42,7 +42,7 @@ class ChatService extends ChangeNotifier {
     final chatRoomId = _generateChatRoomId(userId, otherUserId);
 
     return _firestore
-        .collection("ext_chat_rooms")
+        .collection("chat_rooms")
         .doc(chatRoomId)
         .collection("messages")
         .orderBy("timestamp", descending: false) // older messages first
