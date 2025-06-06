@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 class ChatPage extends StatefulWidget {
   final String receiverUserEmail;
   final String receiverUserID;
+
   const ChatPage({
     super.key,
     required this.receiverUserEmail,
@@ -19,25 +20,30 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-
   final ChatService _chatService = ChatService();
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
+  final ScrollController _scrollController = ScrollController();
+
   void sendMessage() async {
-    if (_messageController.text.trim().isNotEmpty) {
-      await _chatService.sendMessage(widget.receiverUserID, _messageController.text.trim());
+    if (_messageController.text.isNotEmpty) {
+      await _chatService.sendMessage(
+        widget.receiverUserID,
+        _messageController.text,
+      );
       _messageController.clear();
       _scrollToBottom();
     }
   }
 
   void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      }
-    });
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   @override
@@ -45,6 +51,7 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.receiverUserEmail),
+        elevation: 0.0,
       ),
       body: Column(
         children: [
@@ -62,15 +69,32 @@ class _ChatPageState extends State<ChatPage> {
         _firebaseAuth.currentUser!.uid,
       ),
       builder: (context, snapshot) {
-        if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
+        if (snapshot.hasError) {
+          return Center(child: Text("Error: ${snapshot.error}"));
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        // No messages case
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(
+            child: Text(
+              "No messages yet.\nSay hi 👋",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          );
         }
 
         WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
         return ListView(
           controller: _scrollController,
+          padding: const EdgeInsets.symmetric(vertical: 8),
           children: snapshot.data!.docs
               .map((doc) => _buildMessageItem(doc))
               .toList(),
@@ -80,70 +104,48 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildMessageItem(DocumentSnapshot document) {
-    final data = document.data() as Map<String, dynamic>;
-    final isSender = data['senderId'] == _firebaseAuth.currentUser!.uid;
+    Map<String, dynamic> data = document.data() as Map<String, dynamic>;
 
-    final alignment = isSender ? Alignment.centerRight : Alignment.centerLeft;
-    final bgColor = isSender ? Colors.blue[200] : Colors.grey[300];
-    final textColor = Colors.black;
-    final timestamp = (data['timestamp'] as Timestamp).toDate();
+    bool isSender = data['senderId'] == _firebaseAuth.currentUser!.uid;
+    Alignment alignment = isSender ? Alignment.centerLeft : Alignment.centerRight;
+    Color bubbleColor = isSender ? Colors.blue.shade100 : Colors.grey.shade300;
+    Color textColor = Colors.black;
 
     return Align(
       alignment: alignment,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        padding: const EdgeInsets.all(10),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: bgColor,
+          color: bubbleColor,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Column(
-          crossAxisAlignment: isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            Text(data['message'], style: TextStyle(color: textColor)),
-            const SizedBox(height: 4),
-            Text(
-              _formatTimestamp(timestamp),
-              style: TextStyle(color: Colors.grey[600], fontSize: 10),
-            ),
-          ],
+        child: Text(
+          data['message'],
+          style: TextStyle(color: textColor, fontSize: 16),
         ),
       ),
     );
   }
 
-  String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    if (now.difference(timestamp).inDays == 0) {
-      return "${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}";
-    } else {
-      return "${timestamp.day}/${timestamp.month}/${timestamp.year}";
-    }
-  }
-
   Widget _buildMessageInput() {
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: Row(children: [
-        Expanded(
-          child: TextField(
-            controller: _messageController,
-            decoration: InputDecoration(
-              hintText: "Enter message...",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+      child: Row(
+        children: [
+          Expanded(
+            child: MyTextField(
+              controller: _messageController,
+              hintText: "Type a message...",
+              obscureText: false,
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          onPressed: sendMessage,
-          icon: const Icon(Icons.send, size: 28),
-          color: Theme.of(context).primaryColor,
-        ),
-      ]),
+          IconButton(
+            onPressed: sendMessage,
+            icon: const Icon(Icons.send, size: 28, color: Colors.blue),
+          ),
+        ],
+      ),
     );
   }
 }

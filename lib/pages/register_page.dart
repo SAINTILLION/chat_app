@@ -1,3 +1,4 @@
+import 'package:chat_app/components/cirular_progress_indicator.dart';
 import 'package:chat_app/components/my_text_field.dart';
 import 'package:chat_app/services/auth/auth_service.dart';
 import 'package:flutter/material.dart';
@@ -17,12 +18,16 @@ class _RegisterPageState extends State<RegisterPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+  bool _obscurePassword_1 = true;
+  bool _obscurePassword_2 = true;
+
+
 
   // sign up user
   void signUp() async {
     if (passwordController.text != confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text("Passwords do not match"),
         ),
       );
@@ -30,11 +35,14 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     final authService = Provider.of<AuthService>(context, listen: false);
-
+    Circular_ProgressIndicator(context);
     try {
       await authService.signUpWithEmailandPassword(
-          emailController.text, passwordController.text);
+          emailController.text, passwordController.text
+        );
+      Navigator.pop(context); //CLOSE LODING DIALOG
     } catch (e) {
+      Navigator.pop(context); //CLOSE LODING DIALOG
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString()),
@@ -80,20 +88,45 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 const SizedBox(height: 10),
 
-                //password textfield
+                // Password field with toggle
                 MyTextField(
                   controller: passwordController,
-                  hintText: "password",
-                  obscureText: true,
+                  hintText: "Password",
+                  obscureText: _obscurePassword_1,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword_1
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword_1 = !_obscurePassword_1;
+                      });
+                    },
+                  ),
                 ),
-
                 const SizedBox(height: 10),
 
-                // Confirm password textfield
+                //  confirm Password field with toggle
                 MyTextField(
                   controller: confirmPasswordController,
-                  hintText: "Confirm Password",
-                  obscureText: true,
+                  hintText: "Password",
+                  obscureText: _obscurePassword_2,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword_2
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword_2 = !_obscurePassword_2;
+                      });
+                    },
+                  ),
                 ),
 
                 const SizedBox(height: 50),

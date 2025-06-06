@@ -68,7 +68,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildUserList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").snapshots(),
+      stream: FirebaseFirestore.instance.collection("ext_users").snapshots(),
       builder: ((context, snapshot) {
         if (snapshot.hasError) {
           return const Center(child: Text("Something went wrong."));
@@ -94,7 +94,10 @@ class _HomePageState extends State<HomePage> {
         }).toList();
 
         if (users.isEmpty) {
-          return const Center(child: Text("No users found."));
+          return const Center(
+          child:
+           Text("No users found.", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          );
         }
 
         return ListView.builder(

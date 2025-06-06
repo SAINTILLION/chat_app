@@ -4,6 +4,7 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
 if (localPropertiesFile.exists()) {
@@ -22,14 +23,26 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+       keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+
+
+def isCiBuild = System.getenv("CI") != null
+def keystorePathEnv = System.getenv("CM_KEYSTORE_PATH")
+def keystorePathLocal = keystoreProperties['StoreFile']
 android {
     namespace "com.example.chat_app"
-    compileSdkVersion flutter.compileSdkVersion
-    ndkVersion flutter.ndkVersion
+    compileSdkVersion 35
+    ndkVersion "27.0.12077973"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+        coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
@@ -45,17 +58,66 @@ android {
         applicationId "com.example.chat_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdkVersion flutter.minSdkVersion
-        targetSdkVersion flutter.targetSdkVersion
+        minSdkVersion 23
+        targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
 
-    buildTypes {
+     signingConfigs {
+        debug {
+            // Default debug signing config (optional to define explicitly)
+        }
+        
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            if (isCiBuild) {
+                if (keystorePathEnv != null && file(keystorePathEnv).exists()) {
+                    storeFile file(keystorePathEnv)
+                    storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+                    keyAlias System.getenv("CM_KEY_ALIAS")
+                    keyPassword System.getenv("CM_KEY_PASSWORD")
+                } else {
+                    // No keystore info in CI, fallback to debug signing or fail build
+                }
+            }
+            else {
+                //if (keystorePathLocal != null && file(keystorePathLocal).exists()) {
+                    //storeFile file(keystorePathLocal)
+                    //storePassword keystoreProperties['storePassword']
+                    //keyAlias keystoreProperties['keyAlias']
+                    //keyPassword keystoreProperties['keyPassword']
+                //} else {
+                    // No local keystore found, fallback to debug signing
+                //}
+            }
+        }
+        
+    }
+
+
+    buildTypes {
+        debug {
             signingConfig signingConfigs.debug
+        }
+        release {
+            
+            if (isCiBuild) {
+                if (keystorePathEnv != null && file(keystorePathEnv).exists()) {
+                    signingConfig signingConfigs.release
+                } else {
+                    signingConfig signingConfigs.debug
+                }
+            } else {
+                if (keystorePathLocal != null && file(keystorePathLocal).exists()) {
+                    signingConfig signingConfigs.release
+                } else {
+                    signingConfig signingConfigs.debug
+                }
+            }
+            
+            // Optional release build optimizations
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }
@@ -64,4 +126,7 @@ flutter {
     source '../..'
 }
 
-dependencies {}
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+}
+
