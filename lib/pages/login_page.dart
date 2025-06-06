@@ -14,27 +14,24 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  //text controlllers
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  //sign in for user
+  bool _obscurePassword = true;
+
   void signIn() async {
-    // get the auth service
     final authService = Provider.of<AuthService>(context, listen: false);
     Circular_ProgressIndicator(context);
     try {
       await authService.signInWithEmailandPassword(
-          emailController.text, passwordController.text);
-      Navigator.pop(context);
+        emailController.text,
+        passwordController.text,
+      );
+      Navigator.pop(context); // Close loading dialog
     } catch (e) {
-      Navigator.pop(context);
+      Navigator.pop(context); // Close loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString(),
-          ),
-        ),
+        SnackBar(content: Text(e.toString())),
       );
     }
   }
@@ -50,24 +47,19 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 50),
-                // Logo
-                Icon(
-                  Icons.message,
-                  size: 100,
-                  color: Colors.grey[800],
-                ),
 
-                // welcome back messsage
+                Icon(Icons.message, size: 100, color: Colors.grey[800]),
+
+                const SizedBox(height: 20),
+
                 const Text(
                   "Welcome back you've have been missed!",
-                  style: TextStyle(
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontSize: 16),
                 ),
 
                 const SizedBox(height: 25),
 
-                // email textfield
+                // Email field
                 MyTextField(
                   controller: emailController,
                   hintText: "Email",
@@ -76,21 +68,32 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 10),
 
-                //password textfield
+                // Password field with toggle
                 MyTextField(
                   controller: passwordController,
-                  hintText: "password",
-                  obscureText: true,
+                  hintText: "Password",
+                  obscureText: _obscurePassword,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
                 ),
 
                 const SizedBox(height: 50),
 
-                //sign in button
                 MyButton(onTap: signIn, text: "Sign In"),
 
                 const SizedBox(height: 50),
 
-                // not a member? register now
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -100,9 +103,7 @@ class _LoginPageState extends State<LoginPage> {
                       onTap: widget.onTap,
                       child: const Text(
                         "Register now",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],

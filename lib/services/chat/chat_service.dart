@@ -4,19 +4,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class ChatService extends ChangeNotifier {
-  // get instance of auth and firestore
+  // Firebase instances
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // SEND MESSAGES
+  /// SEND MESSAGE
   Future<void> sendMessage(String receiverId, String message) async {
-    // get the  current user
-    final String currentUserId = _firebaseAuth.currentUser!.uid;
-    final String currentUserEmail = _firebaseAuth.currentUser!.email.toString();
+    final currentUser = _firebaseAuth.currentUser;
+    if (currentUser == null) return;
+
+    final String currentUserId = currentUser.uid;
+    final String currentUserEmail = currentUser.email ?? '';
     final Timestamp timestamp = Timestamp.now();
 
-    // create a new message,
-    Message newMessage = Message(
+    // Create message model
+    final newMessage = Message(
       senderId: currentUserId,
       senderEmail: currentUserEmail,
       receiverId: receiverId,
@@ -24,32 +26,32 @@ class ChatService extends ChangeNotifier {
       message: message,
     );
 
-    // construct chat room id from current id sorted to ensure uniqueness
-    List<String> ids = [currentUserId, receiverId];
-    String chatRoomId = ids.join("_"); //combine the ids into a single sting to use as chatRoomID
+    // Chat room ID: sorted for consistency
+    final chatRoomId = _generateChatRoomId(currentUserId, receiverId);
 
-    ids.sort(); // sort the ids (this ensures the chat room id is always the same for any pair fo two people).
-
-    // add new message to database
+    // Add message to Firestore
     await _firestore
-        .collection("chat_rooms")
+        .collection("ext_chat_rooms")
         .doc(chatRoomId)
         .collection("messages")
         .add(newMessage.toMap());
   }
 
-  //GET MESSAGE
+  /// GET MESSAGES STREAM
   Stream<QuerySnapshot> getMessages(String userId, String otherUserId) {
-    // construct chat room id from user ids (sorted to ensure it matches the ids used when sending the message)
-    List<String> ids = [userId, otherUserId];
-    ids.sort();
-    String chatRoomId = ids.join("_");
+    final chatRoomId = _generateChatRoomId(userId, otherUserId);
 
     return _firestore
-        .collection("chat_rooms")
+        .collection("ext_chat_rooms")
         .doc(chatRoomId)
         .collection("messages")
-        .orderBy("timestamp", descending: false)
+        .orderBy("timestamp", descending: false) // older messages first
         .snapshots();
+  }
+
+  /// PRIVATE: Generate consistent chat room ID
+  String _generateChatRoomId(String id1, String id2) {
+    final sortedIds = [id1, id2]..sort();
+    return sortedIds.join("_");
   }
 }

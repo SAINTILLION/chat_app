@@ -4,11 +4,15 @@ class MyTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final bool obscureText;
+  final Widget? suffixIcon; // New: optional icon (e.g. eye icon)
+
   const MyTextField({
-    super.key, 
-    required this.controller, 
-    required this.hintText, 
-    required this.obscureText});
+    super.key,
+    required this.controller,
+    required this.hintText,
+    required this.obscureText,
+    this.suffixIcon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +20,7 @@ class MyTextField extends StatelessWidget {
       controller: controller,
       obscureText: obscureText,
       keyboardType: TextInputType.text,
-      decoration:  InputDecoration(
+      decoration: InputDecoration(
         enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(color: Colors.grey.shade200),
         ),
@@ -27,6 +31,7 @@ class MyTextField extends StatelessWidget {
         filled: true,
         hintText: hintText,
         hintStyle: const TextStyle(color: Colors.grey),
+        suffixIcon: suffixIcon, // Show eye icon here if passed
       ),
     );
   }

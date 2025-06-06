@@ -13,94 +13,137 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-// instance of autb
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Sign user out
   void signOut() {
-    // get auth service
-    final authService = Provider.of<AuthService>(context, listen: false);
-    authService.signOut();
-  }
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text("Log Out"),
+      content: const Text("Do you want to log out?"),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(), // Close dialog
+          child: const Text("No"),
+        ),
+        TextButton(
+          onPressed: () {
+            final authService = Provider.of<AuthService>(context, listen: false);
+            authService.signOut();
+            Navigator.of(context).pop(); // Close dialog
+          },
+          child: const Text("Yes"),
+        ),
+      ],
+    ),
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text("Home Page"),
-        elevation: 0.0,
+        backgroundColor: Colors.white,
+        elevation: 1,
+        title: const Text(
+          "Chats",
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
-          // Sign Out Button
           IconButton(
             onPressed: signOut,
-            icon: const Icon(Icons.logout),
-          )
+            icon: const Icon(Icons.logout, color: Colors.black),
+          ),
         ],
       ),
       body: _buildUserList(),
     );
   }
 
-  // build a list of users except for the current logged in user
   Widget _buildUserList() {
     return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection("users").snapshots(),
-        builder: ((context, snapshot) {
-          if (snapshot.hasError) {
-            return const Text("error");
-          }
+      stream: FirebaseFirestore.instance.collection("users").snapshots(),
+      builder: ((context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text("Something went wrong."));
+        }
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,  
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(color: Colors.blue,),
-                Text(
-                  "loading..."
-                  ),
+                CircularProgressIndicator(color: Colors.blue),
+                SizedBox(height: 16),
+                Text("Loading users..."),
               ],
-              ),
-            );
-          }
-
-          return ListView(
-            children: snapshot.data!.docs
-                .map<Widget>((doc) => _buildUserListItem(doc))
-                .toList(),
+            ),
           );
-        }));
+        }
+
+        final userDocs = snapshot.data!.docs;
+        final users = userDocs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return _auth.currentUser!.email != data["email"];
+        }).toList();
+
+        if (users.isEmpty) {
+          return const Center(child: Text("No users found."));
+        }
+
+        return ListView.builder(
+          itemCount: users.length,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          itemBuilder: (context, index) =>
+              _buildUserListItem(users[index]),
+        );
+      }),
+    );
   }
 
-  // build individual user list items
   Widget _buildUserListItem(DocumentSnapshot document) {
-    Map<String, dynamic> data = document.data()! as Map<String, dynamic>;
+    final data = document.data()! as Map<String, dynamic>;
+    final userEmail = data["email"];
+    final userId = data["uid"];
 
-    //display all users excepT current user
-    if (_auth.currentUser!.email != data["email"]) {
-      return ListTile(
-          title: Text(data["email"]),
-          shape: const RoundedRectangleBorder(
-          side: BorderSide(
-            color: Colors.grey, // Customize border color
-            width: 1.0,        // Adjust border thickness
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.blueAccent,
+          child: Text(
+            userEmail[0].toUpperCase(),
+            style: const TextStyle(color: Colors.white),
           ),
         ),
-          onTap: () {
-            // pass the clicked user's UID to the chat page
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ChatPage(
-                  receiverUserEmail: data["email"],
-                  receiverUserID: data["uid"],
-                ),
+        title: Text(
+          userEmail,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 16,
+          ),
+        ),
+        trailing: const Icon(Icons.chat_bubble_outline, color: Colors.grey),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatPage(
+                receiverUserEmail: userEmail,
+                receiverUserID: userId,
               ),
-            );
-          });
-    } else {
-      // retrun empty container
-      return Container();
-    }
+            ),
+          );
+        },
+      ),
+    );
   }
 }

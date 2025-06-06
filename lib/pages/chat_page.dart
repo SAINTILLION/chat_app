@@ -7,10 +7,11 @@ import 'package:flutter/material.dart';
 class ChatPage extends StatefulWidget {
   final String receiverUserEmail;
   final String receiverUserID;
-  const ChatPage(
-      {super.key,
-      required this.receiverUserEmail,
-      required this.receiverUserID});
+  const ChatPage({
+    super.key,
+    required this.receiverUserEmail,
+    required this.receiverUserID,
+  });
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -18,17 +19,25 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
   final ChatService _chatService = ChatService();
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   void sendMessage() async {
-    // only send message if there is something to send
-    if (_messageController.text.isNotEmpty) {
-      await _chatService.sendMessage(
-          widget.receiverUserID, _messageController.text);
-      // clear the text controller after sending the message
+    if (_messageController.text.trim().isNotEmpty) {
+      await _chatService.sendMessage(widget.receiverUserID, _messageController.text.trim());
       _messageController.clear();
+      _scrollToBottom();
     }
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
   @override
@@ -36,104 +45,103 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.receiverUserEmail),
-        elevation: 0.0,
-        ),
+      ),
       body: Column(
         children: [
-          // messages
-          Expanded(
-            child: _buildMessageList(),
-          ),
-
-          // user input
-          _buildMessageInput()
+          Expanded(child: _buildMessageList()),
+          _buildMessageInput(),
         ],
       ),
     );
   }
 
-// build message list
-  _buildMessageList() {
+  Widget _buildMessageList() {
     return StreamBuilder(
-      stream: _chatService.getMessages(widget.receiverUserID, _firebaseAuth.currentUser!.uid),
+      stream: _chatService.getMessages(
+        widget.receiverUserID,
+        _firebaseAuth.currentUser!.uid,
+      ),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Text('Error' + snapshot.error.toString());
+        if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.center, 
-              children: [
-                CircularProgressIndicator(),
-                Text("Loading...")
-              ],
-            );
-        }
-      
-      return ListView(
-        cacheExtent: 5,
-        children: snapshot.data!.docs.map((document)=> _buildMessageItem(document)).toList(),
-      );
-      }
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+        return ListView(
+          controller: _scrollController,
+          children: snapshot.data!.docs
+              .map((doc) => _buildMessageItem(doc))
+              .toList(),
+        );
+      },
     );
   }
 
-// build message item
   Widget _buildMessageItem(DocumentSnapshot document) {
-     Map<String, dynamic> data = document.data() as Map<String, dynamic>;
+    final data = document.data() as Map<String, dynamic>;
+    final isSender = data['senderId'] == _firebaseAuth.currentUser!.uid;
 
-    // align the mesages to the right if the sender is the current user, otherwise to the left
-    var alignment = (data['senderId'] == _firebaseAuth.currentUser!.uid)
-        ? Alignment.centerLeft
-        : Alignment.centerRight;
-    var color = (data['senderId'] == _firebaseAuth.currentUser!.uid)
-     ? Colors.blue 
-     : const Color.fromARGB(255, 255, 255, 255); 
-    var textstyle =  (data['senderId'] == _firebaseAuth.currentUser!.uid)
-        ? Theme.of(context).textTheme.displaySmall
-        : Theme.of(context).textTheme.displayMedium;
+    final alignment = isSender ? Alignment.centerRight : Alignment.centerLeft;
+    final bgColor = isSender ? Colors.blue[200] : Colors.grey[300];
+    final textColor = Colors.black;
+    final timestamp = (data['timestamp'] as Timestamp).toDate();
+
     return Align(
       alignment: alignment,
       child: Container(
-        width: 200,
-        margin: EdgeInsets.only(left: 8.0, right: 8.0, top: 4.0, bottom: 4 ),
-        padding: const EdgeInsets.all(8.0),
-        color: color,
-        child:Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [  
-          Text(
-            data['message'],
-            style: textstyle,
-          ),
-          const SizedBox(height: 12)
-          ]
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            Text(data['message'], style: TextStyle(color: textColor)),
+            const SizedBox(height: 4),
+            Text(
+              _formatTimestamp(timestamp),
+              style: TextStyle(color: Colors.grey[600], fontSize: 10),
+            ),
+          ],
         ),
       ),
     );
   }
 
-//build message input
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    if (now.difference(timestamp).inDays == 0) {
+      return "${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}";
+    } else {
+      return "${timestamp.day}/${timestamp.month}/${timestamp.year}";
+    }
+  }
+
   Widget _buildMessageInput() {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Row(children: [
-        // textfield
         Expanded(
-          child: MyTextField(
-          controller: _messageController,
-          hintText: "Enter message",
-          obscureText: false,
-        )),
-    
-        // send button
+          child: TextField(
+            controller: _messageController,
+            decoration: InputDecoration(
+              hintText: "Enter message...",
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
         IconButton(
           onPressed: sendMessage,
-          icon: const Icon(
-            Icons.arrow_upward,
-            size: 40,
-          ),
+          icon: const Icon(Icons.send, size: 28),
+          color: Theme.of(context).primaryColor,
         ),
       ]),
     );
